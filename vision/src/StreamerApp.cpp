@@ -48,11 +48,12 @@
 //}
 
 #include <PointCloudStreamer.hpp>
+#include <cstdio>;
 
 int main(int argc,char *argv[])
 {
 	PointCloudStreamer app(argv[1]);
-
+	//freopen("log.log", "w", stdout);
 	app.mainLoopFile();
 	std::cout << "ok" << std:: endl;
 	getch();

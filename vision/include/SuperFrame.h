@@ -9,6 +9,7 @@
 
 #include <MatchResult.h>
 
+#define _DEBUG true
 using namespace pcl;
 class SuperFrame
 {

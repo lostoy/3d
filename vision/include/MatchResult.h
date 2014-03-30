@@ -5,6 +5,11 @@
 class MatchResult
 {
 public:
+	MatchResult()
+	{
+		mse = 1e10;
+		transform = Eigen::Matrix4f::Identity();
+	}
 	std::vector<cv::DMatch> inliers;
 	
 	float mse;

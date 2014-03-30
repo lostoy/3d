@@ -251,6 +251,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
+
 //#include <pcl/io/openni_grabber.h>
 #include <pcl/io/pcd_grabber.h>
 
@@ -258,13 +259,13 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 
-//#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 //#include <pcl/visualization/image_viewer.h>
 
 //#include <pcl/registration/icp.h>
 #include <pcl/registration/gicp.h>
 #include <pcl/filters/approximate_voxel_grid.h>
-//#include <pcl/registration/transformation_estimation_point_to_plane_lls.h>
+
 #include <pcl/filters/filter.h>
 
 #include <iostream>
@@ -277,13 +278,15 @@ class PointCloudStreamer
 {
 public:
 	//constructor, several switches for the streamer is self-explaning.
-	PointCloudStreamer(std::string pcd_dir) :cur_frameid(0), stepFrame_(false), saveFrame_(true)
+	PointCloudStreamer(std::string pcd_dir) :cur_frameid(0), stepFrame_(false), saveFrame_(true), enable_vis_(false)
 	{
 		exit_ = false;
 		
 		boost::filesystem::create_directory("data");
 		boost::filesystem::create_directory("data/_img");
 		boost::filesystem::create_directory("data/_txt");
+		boost::filesystem::create_directory("data/_cloud");
+		boost::filesystem::create_directory("data/_wcloud");
 		boost::filesystem::create_directory("data/_mat");
 
 		//list pcd files
@@ -295,9 +298,30 @@ public:
 		//intialize superframes
 		superFrames[0] = new SuperFrame;
 		superFrames[1] = new SuperFrame;
+
+		//intialize visualization
+		if (enable_vis_)
+		{
+			cloud_viewer_ = pcl::visualization::PCLVisualizer::Ptr(new pcl::visualization::PCLVisualizer);
+			cloud_viewer_->registerKeyboardCallback(boost::bind(&PointCloudStreamer::keyboard_callback, this, _1));
+
+		}
+
 	}
 
-	
+	void keyboard_callback(const pcl::visualization::KeyboardEvent &e)
+	{
+		if (e.keyUp())
+			{
+				key_pressed_ = true;
+				int key = e.getKeyCode();
+				if (key == (int)'q')
+					exit_ = true;
+				if (key == (int)'i')
+					gicp_ = true;
+			}
+	}
+
 	~PointCloudStreamer()
 	{
 
@@ -323,14 +347,39 @@ public:
 		return pcdFiles;
 	}
 	void mainLoopFile();
-	
+	void gicp(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr query_cloud, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr train_cloud, Eigen::Matrix4f &transform)
+	{
+		pcl::IterativeClosestPoint< pcl::PointXYZRGBA, pcl::PointXYZRGBA > gicp_;
+		pcl::PointCloud<pcl::PointXYZRGBA> cloud_plus1, cloud_plus2;
+		
+		std::vector<int> ind;
+		gridFilter(query_cloud,cloud_plus1, 0.001f);
+		gridFilter(train_cloud,cloud_plus2, 0.001f);
+		gicp_.setInputSource(cloud_plus1.makeShared());
+		gicp_.setInputTarget(cloud_plus2.makeShared());
+				
+		
+		gicp_.align(cloud_plus1, transform);
+		transform = gicp_.getFinalTransformation();
+		
+				
+		
+	}
 	
 private:
 
 	
+	void gridFilter(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGBA> &out_cloud, float leaf_size)
+	{
+		pcl::ApproximateVoxelGrid<pcl::PointXYZRGBA> sog;
+		sog.setInputCloud(cloud);
+		sog.setLeafSize(leaf_size, leaf_size, leaf_size);
+		sog.filter(out_cloud);
+	}
+
 
 	// saveCloud, used by streamer to save every REGISTRATED frame.
-	void saveCloud(pcl::PointCloud<pcl::PointXYZRGBA> &cloud_, std::string loc, size_t frameid,std::string suffix)
+	void saveCloud(pcl::PointCloud<pcl::PointXYZRGBA> &cloud_, std::string loc, size_t frameid,std::string suffix,bool world)
 	{
 		if (cloud_.empty())
 			return;
@@ -339,18 +388,33 @@ private:
 		pcl::PointCloud<pcl::PointXYZRGBA> cloud_f;
 		std::vector<int> ind;
 		pcl::removeNaNFromPointCloud(cloud_, cloud_f, ind);
-		pcl::transformPointCloud(cloud_f, cloud_f, worldTransform_);
+		if (world)
+			pcl::transformPointCloud(cloud_f, cloud_f, worldTransform_);
 		pcl::io::savePLYFileBinary("data/"+loc + ss.str() + suffix, cloud_f);
 
+	}
+
+	void saveMatrix(MatchResult res, std::string loc, size_t frameid, std::string suffix)
+	{
+		std::stringstream ss;
+		ss << frameid;
+		std::fstream file("data/" + loc + ss.str() + suffix, std::ios::out);
+		file << res.transform << std::endl;
+		file << res.inliers.size() << std:: endl;
+		file.close();
 	}
 	
 	SuperFrame* superFrames[2];
 	Eigen::Matrix4f worldTransform_;
 
+	pcl::visualization::PCLVisualizer::Ptr cloud_viewer_;
+
 	bool exit_;
 	bool stepFrame_;
 	bool saveFrame_;
-	
+	bool enable_vis_;
+	bool gicp_;
+	bool key_pressed_;
 
 	std::vector<std::string> filenames;
 	size_t cur_frameid;

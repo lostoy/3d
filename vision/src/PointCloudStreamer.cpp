@@ -304,16 +304,18 @@ void PointCloudStreamer::mainLoopFile()
 		pcl::io::loadPCDFile(filenames[cur_frameid], superFrames[1]->cloud_);
 		superFrames[1]->getFeatures(superFrames[1]->cloud_.makeShared(), superFrames[1]->keypoints, superFrames[1]->features_);
 		std::cout << "++++++"<<cur_frameid << "+++++++\n";
+		MatchResult res;
+		
 		if (cur_frameid != 0)
 		{
 
-			MatchResult res;
+			
 			superFrames[1]->match2SuperFrames(*superFrames[0], res);
-			std::cout << "       " << res.inliers.size() << " " << res.mse << "\n";
-			if ((res.transform.col(3).squaredNorm() - 1) < 0.2f*0.2f)
+			
+			if (res.inliers.size()>=20&&(res.transform.col(3).squaredNorm() - 1) < 0.4f*0.4f)
 				continue;
 
-			worldTransform_ = worldTransform_*res.transform;
+			
 
 			
 
@@ -323,9 +325,41 @@ void PointCloudStreamer::mainLoopFile()
 			std::stringstream ss;
 			ss << cur_frameid;
 			imwrite("data/_img/"+ss.str()+"_img.jpg", img_matches);*/
+
+			//visualization
+			if (enable_vis_)
+			{
+				cloud_viewer_->removeAllPointClouds();
+				pcl::PointCloud<pcl::PointXYZRGBA> cloud_f;
+				pcl::transformPointCloud(superFrames[1]->cloud_, cloud_f, res.transform);
+				cloud_viewer_->addPointCloud(cloud_f.makeShared(),"cloud_query");
+				cloud_viewer_->addPointCloud(superFrames[0]->cloud_.makeShared(),"cloud_train");
+				std::cout << "gicp?\n";
+				key_pressed_ = gicp_=false;
+				while (!key_pressed_)
+					cloud_viewer_->spinOnce(3);
+				if (gicp_)
+				{
+					gicp(superFrames[1]->cloud_.makeShared(), superFrames[0]->cloud_.makeShared(), res.transform);
+					cloud_viewer_->removePointCloud("cloud_query");
+					pcl::transformPointCloud(superFrames[1]->cloud_, cloud_f, res.transform);
+					cloud_viewer_->addPointCloud(cloud_f.makeShared(), "cloud_query");
+
+				}
+				cloud_viewer_->spinOnce(3);
+
+			}
+			//else
+			//	if (res.inliers.size() < 20)
+			//		gicp(superFrames[1]->cloud_.makeShared(), superFrames[0]->cloud_.makeShared(), res.transform);
+
+			worldTransform_ = worldTransform_*res.transform;
 		}
 		std::cout << "saving...\n";
-		saveCloud(superFrames[1]->cloud_, "", cur_frameid, "_cloud.ply");
+		saveMatrix(res, "/_mat/", cur_frameid, "_mat.txt");
+		saveCloud(superFrames[1]->cloud_, "/_wcloud/", cur_frameid, "_wcloud.ply",true);
+		saveCloud(superFrames[1]->cloud_, "/_cloud/", cur_frameid, "_cloud.ply", false);
+		
 		SuperFrame * tmp=superFrames[0];
 		superFrames[0] = superFrames[1];
 		superFrames[1] = tmp;

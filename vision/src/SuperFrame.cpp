@@ -244,7 +244,7 @@ bool SuperFrame::computeInlierAndError(SuperFrame &other, Eigen::Matrix4f transf
 	}
 	if (inliers.size() == 0)
 	{
-		mse = 1e100;
+		mse = 1e10;
 	}
 	mse = M2 / n;
 	return true;
@@ -255,8 +255,13 @@ bool SuperFrame::ransacFusion(SuperFrame &other, std::vector<cv::DMatch> vis_mat
 	if (vis_matches.size() == 0)
 		return false;
 
-	//get samples from candadite visual matches
+	//match with identity
 	
+	res.transform = Eigen::Matrix4f::Identity();
+	computeInlierAndError(other, res.transform, vis_matches, res.inliers, res.mse);
+	if (res.inliers.size() > std::min(min_inlier_num, int(0.75*vis_matches.size())) && res.mse < max_inlier_dis)
+		return true;
+	//get samples from candadite visual matches
 	for (int iter = 0; iter < max_ransac_iter; iter++)
 	{
 		MatchResult tmp_res;
@@ -289,6 +294,7 @@ bool SuperFrame::match2SuperFrames(SuperFrame &other, MatchResult& res)
 	std::vector<cv::DMatch> vis_matches;
 	featuresMatch(other, vis_matches);
 	ransacFusion(other, vis_matches, res);
-	
+	if (_DEBUG)
+		std::cout << "inlier matches: " << res.inliers.size() << " / " << vis_matches.size() <<" , mse: "<<res.mse<< std::endl;
 	return true;
 }
