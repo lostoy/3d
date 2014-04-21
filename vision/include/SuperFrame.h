@@ -19,20 +19,29 @@ public:
 		img = cv::Mat(height_, width_, CV_8UC3);
 		mask = cv::Mat::zeros(height_, width_, CV_8UC1);
 	}
+	
+	//get rgb feautures and keypoint from a cloud
 	bool getFeatures(PointCloud<PointXYZRGBA>::Ptr cloud, std::vector<cv::KeyPoint> &keypoints,cv::Mat &features);
 
+	//match rgb features between two superframes
 	bool featuresMatch(SuperFrame &other, std::vector<cv::DMatch> &vis_matches);
 
+	//get rgb image from the organized cloud, at the same time the mask is set to 255 where there's valid depth
 	bool getImageFromCloud(PointCloud<PointXYZRGBA>::Ptr cloud, cv::Mat &img,cv::Mat &mask);
 
+	//prune the intial visual match by threshold selecting
 	inline bool correctMatch(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud, cv::KeyPoint &keypoint);
 
+	//ransac throught the matches and save the result and its confidence in $res.
 	bool ransacFusion(SuperFrame &other, std::vector<cv::DMatch> vis_matches, MatchResult& res);
 
+	//used by ransacFusion
 	bool computeInlierAndError(SuperFrame &other, Eigen::Matrix4f transform, std::vector<cv::DMatch> vis_matches, std::vector<cv::DMatch> &inliers, float &mse);
 
+	//used by ransacFusion
 	Eigen::Matrix4f getTransformFromSamples(SuperFrame &other, std::vector<cv::DMatch>);
 
+	//the toppest API
 	bool match2SuperFrames(SuperFrame &other, MatchResult& res);
 
 	PointCloud<PointXYZRGBA> cloud_;

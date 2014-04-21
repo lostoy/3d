@@ -273,6 +273,7 @@
 #include <conio.h>  
 
 #include <SuperFrame.h>
+#include <MatchResult.h>
 
 class PointCloudStreamer
 {
@@ -313,12 +314,12 @@ public:
 	{
 		if (e.keyUp())
 			{
-				key_pressed_ = true;
+				
 				int key = e.getKeyCode();
 				if (key == (int)'q')
 					exit_ = true;
-				if (key == (int)'i')
-					gicp_ = true;
+				
+				
 			}
 	}
 
@@ -328,9 +329,7 @@ public:
 	
 	}
 
-	
-	
-	
+	//get all pcd fiels in $dirname, and sort them by frameid
 	std::vector<std::string> setFilenames(std::string dirname)
 	{
 
@@ -368,7 +367,27 @@ public:
 	
 private:
 
-	
+	//to check if the new frame is within a small step of the previous one
+	bool isSmallStep(MatchResult &res)
+	{
+		
+		Eigen::Quaternion <float> q(res.transform.block<3, 3>(0, 0));
+		
+		//if almost lose track
+		if (res.inliers.size() <= 20)
+			return false;
+
+		//if the new frame is within 0.4m of the previous one
+		if ((res.transform.col(3).squaredNorm() - 1) > 0.4f*0.4f)
+			return false;
+		//if the new frame is within 10 degrees of the previous one
+		if (abs(acos(q.w())) > M_PI / 36)
+			return false;
+
+		return true;
+	}
+
+	//filter invalid point
 	void gridFilter(pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud, pcl::PointCloud<pcl::PointXYZRGBA> &out_cloud, float leaf_size)
 	{
 		pcl::ApproximateVoxelGrid<pcl::PointXYZRGBA> sog;
@@ -378,7 +397,7 @@ private:
 	}
 
 
-	// saveCloud, used by streamer to save every REGISTRATED frame.
+	// saveCloud. if world is true, it will save a cloud in the worl coordinate
 	void saveCloud(pcl::PointCloud<pcl::PointXYZRGBA> &cloud_, std::string loc, size_t frameid,std::string suffix,bool world)
 	{
 		if (cloud_.empty())
@@ -394,6 +413,7 @@ private:
 
 	}
 
+	//save the pose matrix for global optimization
 	void saveMatrix(MatchResult res, std::string loc, size_t frameid, std::string suffix)
 	{
 		std::stringstream ss;
@@ -413,9 +433,7 @@ private:
 	bool stepFrame_;
 	bool saveFrame_;
 	bool enable_vis_;
-	bool gicp_;
-	bool key_pressed_;
-
+	
 	std::vector<std::string> filenames;
 	size_t cur_frameid;
 };

@@ -302,6 +302,8 @@ void PointCloudStreamer::mainLoopFile()
 	{
 		
 		pcl::io::loadPCDFile(filenames[cur_frameid], superFrames[1]->cloud_);
+		std::cout << "loaded!\n";
+		superFrames[1]->frameid_ = cur_frameid;
 		superFrames[1]->getFeatures(superFrames[1]->cloud_.makeShared(), superFrames[1]->keypoints, superFrames[1]->features_);
 		std::cout << "++++++"<<cur_frameid << "+++++++\n";
 		MatchResult res;
@@ -311,8 +313,14 @@ void PointCloudStreamer::mainLoopFile()
 
 			
 			superFrames[1]->match2SuperFrames(*superFrames[0], res);
-			
-			if (res.inliers.size()>=20&&(res.transform.col(3).squaredNorm() - 1) < 0.4f*0.4f)
+
+			/*cv::Mat img_matches;
+			cv::drawMatches(superFrames[1]->img, superFrames[1]->keypoints, superFrames[0]->img, superFrames[0]->keypoints, res.inliers, img_matches);
+			std::stringstream ss;
+			ss << cur_frameid;
+			imwrite("data/_img/" + ss.str() + "_img.jpg", img_matches);
+			*/
+			if (isSmallStep(res))
 				continue;
 
 			
@@ -320,11 +328,7 @@ void PointCloudStreamer::mainLoopFile()
 			
 
 			
-			/*cv::Mat img_matches;
-			cv::drawMatches(superFrames[1]->img, superFrames[1]->keypoints, superFrames[0]->img, superFrames[0]->keypoints, res.inliers, img_matches);
-			std::stringstream ss;
-			ss << cur_frameid;
-			imwrite("data/_img/"+ss.str()+"_img.jpg", img_matches);*/
+			
 
 			//visualization
 			if (enable_vis_)
@@ -333,26 +337,10 @@ void PointCloudStreamer::mainLoopFile()
 				pcl::PointCloud<pcl::PointXYZRGBA> cloud_f;
 				pcl::transformPointCloud(superFrames[1]->cloud_, cloud_f, res.transform);
 				cloud_viewer_->addPointCloud(cloud_f.makeShared(),"cloud_query");
-				cloud_viewer_->addPointCloud(superFrames[0]->cloud_.makeShared(),"cloud_train");
-				std::cout << "gicp?\n";
-				key_pressed_ = gicp_=false;
-				while (!key_pressed_)
-					cloud_viewer_->spinOnce(3);
-				if (gicp_)
-				{
-					gicp(superFrames[1]->cloud_.makeShared(), superFrames[0]->cloud_.makeShared(), res.transform);
-					cloud_viewer_->removePointCloud("cloud_query");
-					pcl::transformPointCloud(superFrames[1]->cloud_, cloud_f, res.transform);
-					cloud_viewer_->addPointCloud(cloud_f.makeShared(), "cloud_query");
-
-				}
 				cloud_viewer_->spinOnce(3);
 
 			}
-			//else
-			//	if (res.inliers.size() < 20)
-			//		gicp(superFrames[1]->cloud_.makeShared(), superFrames[0]->cloud_.makeShared(), res.transform);
-
+			
 			worldTransform_ = worldTransform_*res.transform;
 		}
 		std::cout << "saving...\n";

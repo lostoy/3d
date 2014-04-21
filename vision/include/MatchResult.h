@@ -5,6 +5,7 @@
 class MatchResult
 {
 public:
+	//mse, the mean squared error of the visual fusion
 	MatchResult()
 	{
 		mse = 1e10;

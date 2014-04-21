@@ -77,7 +77,13 @@ bool SuperFrame::featuresMatch(SuperFrame &other, std::vector<cv::DMatch> &vis_m
 	cv::FlannBasedMatcher matcher;
 	std::vector<std::vector<cv::DMatch>> initial_matches;
 	matcher.knnMatch(features_, other.features_, initial_matches,2);
-
+	
+	/*cv::Mat img_matches;
+	cv::drawMatches(this->img, this->keypoints, other.img, other.keypoints, std::vector<std::vector<cv::DMatch>>(initial_matches.begin(), initial_matches.begin()+1000), img_matches);
+	std::stringstream ss;
+	ss << this->frameid_;
+	imwrite("data/_img/"+ss.str()+"_rimg.jpg", img_matches);
+*/
 	//prune mathces by valid correction and ratio test
 	vis_matches.clear();
 	for (int i = 0; i <initial_matches.size(); i++)
@@ -156,7 +162,12 @@ bool SuperFrame::featuresMatch(SuperFrame &other, std::vector<cv::DMatch> &vis_m
 	//return only the first max_match_num matches
 	sort(vis_matches.begin(), vis_matches.end());
 	vis_matches = std::vector<cv::DMatch>(vis_matches.begin(), vis_matches.begin() + std::min(int(vis_matches.size()), max_match_num));
-	
+
+	/*cv::drawMatches(this->img, this->keypoints, other.img, other.keypoints, vis_matches, img_matches);
+
+	ss << this->frameid_;
+	imwrite("data/_img/" + ss.str() + "_rpimg.jpg", img_matches);
+*/
 	return true;
 }
 
