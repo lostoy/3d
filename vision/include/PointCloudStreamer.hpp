@@ -271,6 +271,8 @@
 #include <iostream>
 #include <string>
 #include <conio.h>  
+#include <vector>
+#include <algorithm>
 
 #include <SuperFrame.h>
 #include <MatchResult.h>
@@ -329,6 +331,24 @@ public:
 	
 	}
 
+	static int getFrameIDFromPath(std::string path)
+	{
+		boost::filesystem::path s(path);
+		std::string filename = s.filename().string();
+
+
+		int se = filename.find_last_of(".ply");
+		return (atoi(filename.substr(0, se).c_str()));
+	}
+
+	static bool isFilenameSmaller(std::string s1, std::string s2)
+	{
+		int i1 = getFrameIDFromPath(s1);
+		int i2 = getFrameIDFromPath(s2);
+		return i1<i2;
+	}
+
+
 	//get all pcd fiels in $dirname, and sort them by frameid
 	std::vector<std::string> setFilenames(std::string dirname)
 	{
@@ -342,7 +362,7 @@ public:
 		if (boost::filesystem::is_regular_file(pos->status()))
 		if (boost::filesystem::extension(*pos) == ".pcd")
 			pcdFiles.push_back(pos->path().string());
-		std::sort(pcdFiles.begin(), pcdFiles.end());
+		std::sort(pcdFiles.begin(), pcdFiles.end(), isFilenameSmaller);
 		return pcdFiles;
 	}
 	void mainLoopFile();

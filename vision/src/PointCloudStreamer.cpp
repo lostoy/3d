@@ -314,12 +314,12 @@ void PointCloudStreamer::mainLoopFile()
 			
 			superFrames[1]->match2SuperFrames(*superFrames[0], res);
 
-			/*cv::Mat img_matches;
+			cv::Mat img_matches;
 			cv::drawMatches(superFrames[1]->img, superFrames[1]->keypoints, superFrames[0]->img, superFrames[0]->keypoints, res.inliers, img_matches);
 			std::stringstream ss;
 			ss << cur_frameid;
 			imwrite("data/_img/" + ss.str() + "_img.jpg", img_matches);
-			*/
+			
 			if (isSmallStep(res))
 				continue;
 
